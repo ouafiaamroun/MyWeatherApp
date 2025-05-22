@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Image } from "react-native";
 
 const WeatherApp = () => {
-  const [city, setCity] = useState("Torredonjimeno");
+  const [city, setCity] = useState("Tizi Ouzou");
   const [searchCity, setSearchCity] = useState("");
   const [weatherData, setWeatherData] = useState(null);
   const [forecastData, setForecastData] = useState([]);
@@ -57,25 +57,41 @@ const WeatherApp = () => {
 
     return days;
   };
+  // Fonction pour obtenir la température max et min d'une journée
+const getDayTempRange = (temps) => {
+  let tempMax = -Infinity;
+  let tempMin = Infinity;
+
+  temps.forEach(item => {
+    if (item.main.temp_max > tempMax) tempMax = item.main.temp_max;
+    if (item.main.temp_min < tempMin) tempMin = item.main.temp_min;
+  });
+
+  return { tempMax, tempMin };
+};
+
 
   const groupedForecast = groupForecastByDay(forecastData);
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
         {/* Input de recherche */}
         <TextInput
-          style={styles.input}
+          style={styles.searchInput}
           placeholder="Entrez une ville"
           value={searchCity}
           onChangeText={setSearchCity}
-          placeholderTextColor="#aaa"
+          onSubmitEditing={fetchWeather}
+          placeholderTextColor="#888"
+          returnKeyType="search"
         />
         <TouchableOpacity style={styles.button} onPress={fetchWeather}>
           <Text style={styles.buttonText}>Rechercher</Text>
-        </TouchableOpacity>
-
+      </TouchableOpacity>
+      </View>
+      <View style={styles.contentContainer}>
         {/* Chargement */}
         {loading ? (
           <ActivityIndicator size="large" color="#ffffff" />
@@ -87,7 +103,13 @@ const WeatherApp = () => {
               {weatherData ? (
                 <>
                   <Text style={styles.tempText}>{Math.round(weatherData.main.temp)}°C</Text>
+                  <Image
+                     source={{ uri: `https://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png` }}
+                     style={{ width: 60, height: 60 }}
+                  />
                   <Text style={styles.description}>{weatherData.weather[0].description}</Text>
+                  <Text style={styles.description}>Humidité : {weatherData.main.humidity}%</Text>
+                  <Text style={styles.description}>Vent : {Math.round(weatherData.wind.speed)} m/s</Text>
                 </>
               ) : (
                 <Text style={styles.tempText}>--°C</Text>
@@ -101,8 +123,11 @@ const WeatherApp = () => {
                 {forecastData.slice(0, 8).map((item, index) => (
                   <View key={index} style={styles.item}>
                     <Text>{new Date(item.dt * 1000).getHours()}:00</Text>
+                    <Image
+                     source={{ uri: `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png` }}
+                     style={{ width: 50, height: 50 }}
+                    />
                     <Text>{Math.round(item.main.temp)}°C</Text>
-                    <Text>{item.weather[0].main}</Text>
                   </View>
                 ))}
               </View>
@@ -113,6 +138,7 @@ const WeatherApp = () => {
             <ScrollView showsVerticalScrollIndicator={false}>
               {Object.keys(groupedForecast).slice(1, 6).map((day, index) => { // on saute aujourd'hui
                 const temps = groupedForecast[day];
+                const { tempMax, tempMin } = getDayTempRange(temps);
                 const midDayData = temps[Math.floor(temps.length / 2)]; // moyenne de la journée
 
                 return (
@@ -120,8 +146,12 @@ const WeatherApp = () => {
                     <Text style={styles.dayText}>
                       {new Date(day).toLocaleDateString('fr-FR', { weekday: 'long' })}
                     </Text>
+                    <Image
+                      source={{ uri: `https://openweathermap.org/img/wn/${midDayData.weather[0].icon}@2x.png` }}
+                       style={{ width: 50, height: 50 }}
+                    />
                     <Text style={styles.tempRange}>
-                      {Math.round(midDayData.main.temp_max)}° / {Math.round(midDayData.main.temp_min)}°
+                       {Math.round(tempMax)}° / {Math.round(tempMin)}°
                     </Text>
                     <Text style={styles.description}>
                       {midDayData.weather[0].main}
@@ -139,54 +169,79 @@ const WeatherApp = () => {
 };
 
 const styles = StyleSheet.create({
+
   scrollContainer: {
     paddingVertical: 40,
-    backgroundColor: "#00d2ff",
+    backgroundColor: 'rgba(52, 187, 244, 0.54)',      //"#00d2ff",
   },
-  container: {
-    backgroundColor: "#ffffff22",
-    padding: 20,
-    borderRadius: 20,
-    margin: 20,
-    alignItems: "center",
+  
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.45)', // un blanc semi-transparent qui s’intègre bien
+    borderRadius: 25,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginTop: 15, 
+    width: '90%',      // FIXE la largeur à 95% de l’écran
+    alignSelf: 'center', // centre la barre
   },
-  input: {
-    backgroundColor: "white",
-    width: "80%",
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 10,
-    color: "black",
+  
+  searchIcon: {
+    fontSize: 17,
+    marginRight: 10,
+    color: 'white',
   },
+  
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: 'white',
+    paddingVertical: 0,
+    marginRight: 10,
+    minWidth: 0,  // IMPORTANT pour éviter overflow
+  },
+  
   button: {
-    backgroundColor: "#ffffff55",
-    padding: 10,
-    marginBottom: 20,
-    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    paddingVertical: 8,
+    paddingHorizontal: 7,
+    //borderRadius: 25,
+    flexShrink: 0, // empêche le bouton de rétrécir
   },
+  
   buttonText: {
-    color: "white",
-    fontWeight: "bold",
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
+
+  contentContainer: {
+    marginTop: 17,  // ou un padding, pour séparer visuellement
+    paddingHorizontal: 10,
+  },
+  
   city: {
-    fontSize: 24,
+    textAlign: 'center',
+    fontSize: 33,
     fontWeight: "bold",
     color: "white",
-    marginBottom: 10,
+   // marginBottom: 0,
+    width: '100%',
   },
   temperature: {
-    marginVertical: 10,
+    marginVertical: 8,
     alignItems: "center",
   },
   tempText: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: "bold",
     color: "white",
   },
   description: {
     color: "white",
-    fontSize: 16,
-    marginTop: 5,
+    fontSize: 18,
+    marginTop: 3,
     textTransform: "capitalize",
   },
   sectionTitle: {
@@ -215,7 +270,9 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     borderRadius: 10,
     width: "100%",
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
   dayText: {
     color: "white",
